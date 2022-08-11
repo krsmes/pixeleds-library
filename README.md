@@ -28,7 +28,7 @@ Just add `update(millis())` to the `loop()` method and Pixeleds classes take car
 
 ## Examples
 
-#### [Animations](examples/animations.cpp)
+#### [Animations](examples/custom-animation.cpp)
 Use the buttons to cycle through a variety of sample animations.
 
 #### [SimpleRainbow](examples/simple-rainbow.cpp)
