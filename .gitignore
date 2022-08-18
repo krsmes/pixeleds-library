@@ -3,4 +3,6 @@
 
 build
 target
+
+*.bin
 library.tar.gz

@@ -2,7 +2,7 @@
 
 #pragma SPARK_NO_PREPROCESSOR
 #include "application.h"
-#include "Pixeleds.h"
+#include "pixeleds-library.h"
 
 SYSTEM_THREAD(ENABLED);
 
@@ -12,7 +12,7 @@ SYSTEM_THREAD(ENABLED);
  */
 
 /*
- * pallates
+ * palettes
  */
 
 PixPal offPal = { 1, new PixCol[1] {PixCol::OFF} };
@@ -133,7 +133,7 @@ int setPalette(String command) {
     else if (command == "warm")     { pal = &warmPal; }
     else if (command == "blue")     { pal = &bluePal; }
     else return -1;
-    px.startAnimation(&fade_alternating, pal, 30000);
+    px.startAnimation(&fade_from_black, pal, 30000);
     return 0;
 }
 

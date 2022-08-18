@@ -24,7 +24,27 @@ Just add `update(millis())` to the `loop()` method and Pixeleds classes take car
 
 ## Usage
 
-...
+To compile the `usage.ino` example using Particle's cloud compiler:
+
+`particle compile photon src examples/usage/usage.ino --saveTo firmware.bin`
+
+...then deploy:
+
+`particle flash [DEVICE_NAME] firmware.bin`
+
+> Alternatively, to use the local `build.sh` script:
+>
+>`./build.sh examples/usage/usage.ino`
+>
+>...then deploy:
+>
+>`particle flash [DEVICE_NAME] target/firmware.bin`
+
+and to call the `palette` function from the example:
+
+`particle call [DEVICE_NAME] palette "warm"`
+
+... where "warm" can be one of rainbow, christmas, custom, off, white, dim, dark, hot, warm, blue -- see [usage.ino](examples/usage/usage.ino) 
 
 ## Examples
 
@@ -110,11 +130,6 @@ Note that many animations compute the color between two colors in a palette. For
 use the `animation_gradient` with the `paletteBW` across 11 LEDs (pixels) you will end up with
 with a gradient of the brightness of White to Black (off) across the 11 LEDs.  This is the difference
 between using functions on `PixAniData` that take and return `float` vs `int`.
-
-
-## Etc.
-
-...
 
 
 ## License
