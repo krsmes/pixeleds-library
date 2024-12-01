@@ -7,7 +7,7 @@
 SYSTEM_THREAD(ENABLED);
 
 
-PixCol warmColors[] = {PixCol::CRIMSON, PixCol::ORANGE_RED, PixCol::DARK_ORANGE, PixCol::ORANGE_RED};
+PixCol warmColors[] = {PixCol::CRIMSON, PixCol::ORANGE_RED, PixCol::hsv(Hue::ORANGE,1.0,0.3), PixCol::ORANGE_RED};
 PixPal warmPal = { 4, warmColors };
 
 /*

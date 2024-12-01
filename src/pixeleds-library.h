@@ -307,6 +307,23 @@ function hsl2rgb_wiki(h,s,l) {
     };
 };
 
+namespace Hue {
+    constexpr double RED          = 0.0;     // 0°
+    constexpr double ORANGE       = 0.083;   // 30°
+    constexpr double YELLOW       = 0.167;   // 60°
+    constexpr double YELLOW_GREEN = 0.25;    // 90°
+    constexpr double GREEN        = 0.333;   // 120°
+    constexpr double BLUE_GREEN   = 0.417;   // 150°
+    constexpr double CYAN         = 0.5;     // 180°
+    constexpr double AZURE        = 0.583;   // 210°
+    constexpr double BLUE         = 0.667;   // 240°
+    constexpr double VIOLET       = 0.75;    // 270°
+    constexpr double MAGENTA      = 0.833;   // 300°
+    constexpr double PINK         = 0.917;   // 330°
+    constexpr double RED_MAX      = 1.0;     // 360°
+}
+
+
 /* holds a set of colors, helper functions for selecting or computing a color from the palette */
 struct PixPal {
     byte count;
