@@ -470,7 +470,9 @@ extern PixAniFunc animation_gradient;
 
 
 
-// Photon Only, WS2812B Only
+// LED driver (now using neopixel)
+class Adafruit_NeoPixel;
+
 class ParticlePixels {
 public:
     ParticlePixels(PixCol *pixels, int pixelCount, byte pin, byte type = WS2812B, byte order = ORDER_GRB);
@@ -486,13 +488,9 @@ public:
     void setPixelColor(int pixel, PixCol pixelColor);
 
 private:
-    byte pin;
     PixCol *pixels;
     int pixelCount;
-    byte type;
-    byte rOfs,gOfs,bOfs;
-
-    unsigned long endMicros = 0; // private to allow for multiple instances on different pins
+    Adafruit_NeoPixel *strip;
     bool refresh = true;
 };
 
