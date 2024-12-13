@@ -68,9 +68,23 @@ public:
     }
 
     void setup();
-    void update(bool doRefresh = false);
-    void setPixelColor(int pixel, PixCol pixelColor);
-    void triggerRefresh();
+    void update(bool forceRefresh = false);
+    inline void triggerRefresh() { refresh = true; }
+
+    int getPixelCount() { return pixelCount; }
+    PixCol* getPixels() { return pixels; }
+
+    void setPixelColor(int pixel, PixCol pixelColor) {
+        if (pixel >= pixelCount) return;
+        pixels[pixel] = pixelColor;
+        triggerRefresh();
+    };
+    void setPixelColor(int pixel, byte r, byte g, byte b) {
+        if (pixel >= pixelCount) return;
+        pixels[pixel] = PixCol(r, g, b);
+        triggerRefresh();
+    };
+
 
 private:
     // pass in constructor

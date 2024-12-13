@@ -126,10 +126,8 @@ void ParticlePixels::setup() {
 * @note Buffer includes leading/trailing reset periods 
 * @note Returns early if no pixels or no update needed
 */
-void ParticlePixels::update(bool doRefresh) {
-    if (!pixels || (!refresh && !doRefresh)) {
-        return;
-    }
+void ParticlePixels::update(bool forceRefresh) {
+    if (!pixels || (!refresh && !forceRefresh)) return;
 
     // start LED data after reset offset, yay pointer math
     uint8_t* pos = spiArray + resetOffset;
@@ -148,7 +146,7 @@ void ParticlePixels::update(bool doRefresh) {
     // The color order (rOffset,gOffset,bOffset,wOffset) determines final byte arrangement (e.g. ORDER_GRBW)
     // but the incoming colorData is always RGB (3 bytes per pixel) or RGBW (4 bytes per pixel)
     volatile size_t pixelStart = 0;
-    for (size_t i = 0; i < pixelCount; i++) {
+    for (int i = 0; i < pixelCount; i++) {
         pixelStart = i * PIXEL_BYTES_PER_COLOR;
         encodeByteTo3xBits(colorData[pixelStart], pos+rOffset);  // R
         encodeByteTo3xBits(colorData[pixelStart+1], pos+gOffset);  // G
@@ -167,19 +165,6 @@ void ParticlePixels::update(bool doRefresh) {
     spi->endTransaction();
 
     refresh = false;
-}
-
-
-void ParticlePixels::setPixelColor(int pixel, PixCol pixelColor) {
-    if (pixel < pixelCount) {
-        pixels[pixel] = pixelColor;
-        refresh = true;
-    }
-}
-
-
-void ParticlePixels::triggerRefresh() {
-    refresh = true;
 }
 
 #endif

@@ -33,9 +33,25 @@ limitations under the License.
 
 Pixeleds::Pixeleds(PixCol* pixels, int pixelCount, byte pixelPin, byte type, byte order) {
     pixelStrip = new ParticlePixels(pixels, pixelCount, pixelPin, type, order);
-    animationData.pixels = pixels;
-    animationData.pixelCount = pixelCount;
-    setAnimationRefresh();
+    ownPixelStrip = true;
+    initializeAnimation(pixels, pixelCount);
+}
+
+Pixeleds::Pixeleds(int pixelCount, byte pixelPin, byte type, byte order) {
+    PixCol *pixels = new PixCol[pixelCount];
+    ownPixels = true;
+    pixelStrip = new ParticlePixels(pixels, pixelCount, pixelPin, type, order);
+    ownPixelStrip = true;
+    initializeAnimation(pixels, pixelCount);
+} 
+
+Pixeleds::Pixeleds(ParticlePixels* pixelStrip) : pixelStrip(pixelStrip) {
+    initializeAnimation(pixelStrip->getPixels(), pixelStrip->getPixelCount());
+}
+
+Pixeleds::~Pixeleds() { 
+    if (ownPixels) delete[] animationData.pixels; 
+    if (ownPixelStrip) delete pixelStrip; 
 }
 
 /*
@@ -109,6 +125,12 @@ bool Pixeleds::isAnimationActive() const {
  * private helpers
  */
 
+void Pixeleds::initializeAnimation(PixCol* pixels, int pixelCount) {
+    animationData.pixels = pixels;
+    animationData.pixelCount = pixelCount;
+    setAnimationRefresh();
+}
+
 void Pixeleds::updateAnimation(system_tick_t millis) {
     if ((*animationFunction) && (millis > animationData.updated + animationRefresh)) {
 #ifdef PIXELEDS_SERIAL_DEBUG
@@ -116,7 +138,6 @@ void Pixeleds::updateAnimation(system_tick_t millis) {
 #endif
         if (animationData.stop > animationData.start && millis > animationData.stop) {
             animationFunction = nullptr;
-//            setPixels(0);
         }
         else {
             animationData.updated = millis;
@@ -132,7 +153,6 @@ void Pixeleds::updateAnimation(system_tick_t millis) {
         }
     }
 }
-
 
 
 

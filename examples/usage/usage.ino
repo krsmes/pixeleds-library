@@ -1,26 +1,46 @@
-#include "Particle.h"
-#include "pixeleds-library.h"
-#include "pixeleds-colors.h"
-
-SYSTEM_THREAD(ENABLED);
-
 /**
  * This usage example uses the Particle's Photon InternetButton to show how to create pallates,
  * custom animations, and input from cloud functions to controls the LEDs using the Pixeleds class
  */
+#include "Particle.h"
+#include "pixeleds-library.h"
+#include "pixeleds-colors.h"
+
+SYSTEM_MODE(SEMI_AUTOMATIC);
+SYSTEM_THREAD(ENABLED);
+
+// #define PARTICLE_PHOTON_BUTTON // uncomment to use Photon InternetButton config
+
+#ifdef PARTICLE_PHOTON_BUTTON
+#define PARTICLE_PIXEL_PIN 3
+#define PARTICLE_PIXEL_COUNT 11
+#define PARTICLE_PIXEL_TYPE WS2812B
+#define PARTICLE_PIXEL_ORDER ORDER_GRB
+#else
+// 144 SK6812W LEDs on pin D0
+#define PARTICLE_PIXEL_PIN 0
+#define PARTICLE_PIXEL_COUNT 144
+#define PARTICLE_PIXEL_TYPE SK6812W
+#define PARTICLE_PIXEL_ORDER ORDER_GRBW
+#endif
+
+/*
+ * device LED configuration
+ */
+Pixeleds px = Pixeleds(new PixCol[PARTICLE_PIXEL_COUNT] {0}, PARTICLE_PIXEL_COUN) 
+                       PARTICLE_PIXEL_PIN, PARTICLE_PIXEL_TYPE, PARTICLE_PIXEL_ORDE)
 
 /*
  * palettes
  */
+PixPal offPal =   PixPal::create({Color::OFF});
+PixPal whitePal = PixPal::create({Color::IVORY} };
+PixPal dimPal =   PixPal::create({Color::scale(Color::LINEN, 0.1f)} };
+PixPal darkPal =  PixPal::create({Color::scale(Color::BEIGE, 0.02f)} };
 
-PixPal offPal = { 1, new PixCol[1] {Color::OFF} };
-PixPal whitePal = { 1, new PixCol[1] {Color::IVORY} };
-PixPal dimPal = { 1, new PixCol[1] {Color::scale(Color::LINEN, 0.1f)} };
-PixPal darkPal = { 1, new PixCol[1] {Color::scale(Color::BEIGE, 0.02f)} };
-
-PixPal hotPal = { 4, new PixCol[4] {Color::CRIMSON, Color::ORANGE_RED, Color::DARK_ORANGE, Color::ORANGE_RED} };
-PixPal warmPal = { 4, new PixCol[4] {Color::GREEN_YELLOW, Color::ORANGE_RED, Color::DARK_ORANGE, Color::ORANGE_RED} };
-PixPal bluePal = { 4, new PixCol[4] {Color::DARK_TURQUOISE, Color::CYAN, Color::TEAL, Color::CYAN} };
+PixPal hotPal =   PixPal::create({Color::CRIMSON, Color::ORANGE_RED, Color::DARK_ORANGE, Color::ORANGE_RED} };
+PixPal warmPal =  PixPal::create({Color::GREEN_YELLOW, Color::ORANGE_RED, Color::DARK_ORANGE, Color::ORANGE_RED} };
+PixPal bluePal =  PixPal::create({Color::DARK_TURQUOISE, Color::CYAN, Color::TEAL, Color::CYAN} };
 
 PixPal christmasPal { 16, new PixCol[16] {
         Color::BLACK, Color::GREEN, Color::BLACK, Color::RED,
@@ -33,7 +53,7 @@ PixPal customPal = { 1, new PixCol[1] {Color::WHITE} };
 PixPal *pal = &offPal;
 
 /*
- * custom animation
+ * custom animations
  */
 
 void fade_from_black(PixAniData* data) {
@@ -76,39 +96,34 @@ void fade_alternating(PixAniData* data) {
     Serial.printlnf("");
 }
 
-
-/*
- * device LED configuration
- */
-
-// Pixeleds px = Pixeleds(new PixCol[11] {0}, 11, 3, WS2812B, ORDER_GRB); // Photon InternetButton config
-Pixeleds px = Pixeleds(new PixCol[144] {0}, 144, 0, SK6812W, ORDER_GRBW); // other LED setups
-
-
-
 /*
  * setup/loop
  */
 
+// forward declarations
 int setPalette(String command);
 //int setCycle(String command);
 //int setAnimation(String command);
 int setCustom(String command);
 
 void setup() {
+    Serial.begin(9600);
+
+    // functions to invoke remotely to modify the LED display
     Particle.function("palette", setPalette);
     // Particle.function("cycle", setCycle);
     // Particle.function("animation", setAnimation);
     Particle.function("custom", setCustom);
-    Serial.begin(115200);
-    px.setup();
-    px.setAnimationRefresh(1000/2);
 
-    setPalette("white");
+    px.setup();
+    px.setAnimationRefresh(1000/2); // 2Hz, infrequent updates
+
+    setPalette("white"); // start with a white palette
 }
 
 void loop() {
-    px.update(millis());  // this call is where all the work is done
+    // this call is where all the work is done
+    px.update(millis());  
 }
 
 
@@ -137,7 +152,7 @@ int setPalette(String command) {
 
 int setCustom(String command) {
     unsigned int r, g, b;
-    sscanf(command, "%x %x %x", &r, &g, &b);
+    sscanf(command, "%x %x %x", &r, &g, &b);  // parse hex color (space delimited)
     customPal.colors[0] = PixCol((byte)r, (byte)g, (byte)b);
     px.startAnimation(&fade_alternating, &customPal, 30000);
     return 0;

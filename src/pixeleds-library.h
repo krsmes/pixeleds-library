@@ -486,6 +486,12 @@ class Pixeleds {
 public:
     Pixeleds(PixCol *pixels, int pixelCount, byte pixelPin, byte type = WS2812B, byte order = ORDER_RGB);
 
+    Pixeleds(int pixelCount, byte pixelPin, byte type = WS2812B, byte order = ORDER_RGB);
+
+    Pixeleds(ParticlePixels *pixelStrip);
+
+    ~Pixeleds();
+
     // initialize all the things, must be called in application's setup()
     void setup();
 
@@ -523,9 +529,14 @@ public:
     bool isAnimationActive() const;
 
 private:
+    void initializeAnimation(PixCol* pixels, int pixelCount);
+    
     void updateAnimation(system_tick_t millis);
 
     ParticlePixels *pixelStrip;
+    bool ownPixels = false;
+    bool ownPixelStrip = false;
+
     PixAniFunc *animationFunction {};
     PixAniData animationData = PixAniData();
     int animationRefresh{};

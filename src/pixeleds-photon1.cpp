@@ -1,4 +1,3 @@
-#pragma once
 #if (PLATFORM_ID == 6) || (PLATFORM_ID == 8) || (PLATFORM_ID == 10) || (PLATFORM_ID == 88)
 
 #include "pixeleds-photon1.h"
@@ -30,8 +29,8 @@ void ParticlePixels::setup() {
     digitalWrite(pin, LOW);
 }
 
-void ParticlePixels::update(bool doRefresh) {
-    if (!this->refresh && !doRefresh) return;
+void ParticlePixels::update(bool forceRefresh) {
+    if (!pixels || (!refresh && !forceRefresh)) return;
 
     uint32_t wait_micros;
     switch(type) {
@@ -188,17 +187,6 @@ void ParticlePixels::update(bool doRefresh) {
     HAL_enable_irq(irq);
     endMicros = micros();
     this->refresh = false;
-}
-
-void ParticlePixels::setPixelColor(int pixel, PixCol pixelColor) {
-    if (pixel < pixelCount) {
-        pixels[pixel] = pixelColor;
-        refresh = true;
-    }
-}
-
-void ParticlePixels::triggerRefresh() {
-    refresh = true;
 }
 
 #endif // PLATFORM_ID check
