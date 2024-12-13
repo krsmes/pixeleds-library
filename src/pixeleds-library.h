@@ -1,11 +1,6 @@
 #pragma once
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "bugprone-narrowing-conversions"
-#pragma ide diagnostic ignored "OCUnusedGlobalDeclarationInspection"
-#pragma ide diagnostic ignored "hicpp-signed-bitwise"
-#pragma ide diagnostic ignored "hicpp-explicit-conversions"
 /*
-Copyright 2022 The Brynwood Team, LLC
+Copyright 2024 The Brynwood Team, LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,28 +15,70 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#ifndef PIXELEDS_H
-#define PIXELEDS_H
-#define PIXELEDS_V "1.0.0"
-
 #include "Particle.h"
-#include <application.h>
 #include <cmath>
 
 #define M_2XPI 2 * M_PI
 
 #define WS2812B 0x02
 #define SK6812W 0x06
-//                 R    G          B
-#define ORDER_RGB (0 | (1 << 2) | (2 << 4))
-#define ORDER_RBG (0 | (2 << 2) | (1 << 4))
-#define ORDER_GRB (1 | (0 << 2) | (2 << 4))
-#define ORDER_GBR (2 | (0 << 2) | (1 << 4))
-#define ORDER_BRG (1 | (2 << 2) | (0 << 4))
-#define ORDER_BGR (2 | (1 << 2) | (0 << 4))
+
+// (rOffset | rOffset | rOffset | wOffset) each offset is 2 bits, 0-3
+#define ORDER_RGB (0 | (1 << 2) | (2 << 4))  // 0,1,2
+#define ORDER_RBG (0 | (2 << 2) | (1 << 4))  // 0,2,1
+#define ORDER_GRB (1 | (0 << 2) | (2 << 4))  // 1,0,2
+#define ORDER_GBR (2 | (0 << 2) | (1 << 4))  // 2,0,1
+#define ORDER_BRG (1 | (2 << 2) | (0 << 4))  // 1,2,0
+#define ORDER_BGR (2 | (1 << 2) | (0 << 4))  // 2,1,0
+#define ORDER_RGBW (0 | (1 << 2) | (2 << 4) | 3 << 6)  // 0,1,2,3
+#define ORDER_GRBW (1 | (0 << 2) | (2 << 4) | 3 << 6)  // 1,0,2,3
+
+#define PIXEL_BYTES_PER_COLOR 3
+
+// forward declarations
+class ParticlePixels;
 
 
-/* holds a color, some helper functions for manipulating the color */
+/**
+ * @brief A color handling struct for LED programming that stores and manipulates RGB values.
+ * 
+ * The PixCol (Pixel Color) struct provides a comprehensive set of methods for creating,
+ * manipulating, and converting colors in both RGB and HSV/HSL color spaces. It's designed
+ * specifically for LED programming, with support for various color operations and
+ * transformations.
+ * 
+ * Features:
+ * - RGB color storage (0-255 for each channel)
+ * - Direct RGB value construction
+ * - 24-bit hex color construction (0xRRGGBB)
+ * - Color space conversions (RGB, HSV, HSL)
+ * - Color interpolation and scaling
+ * - Predefined color constants
+ * 
+ * Example Usage:
+ * @code
+ * // Create colors in different ways
+ * PixCol red(255, 0, 0);                  // Using RGB values
+ * PixCol blue(0x0000FF);                  // Using hex value
+ * PixCol green = PixCol::hsv(120, 255, 255); // Using HSV
+ * 
+ * // Interpolate between colors
+ * PixCol purple = red.interpolate(blue, 0.5);  // Mix red and blue
+ * 
+ * // Scale brightness
+ * PixCol dimRed = red.scale(0.5);  // 50% brightness
+ * @endcode
+ * 
+ * Color Space Support:
+ * - RGB: Native format, stored as bytes for red, green, blue
+ * - HSV: Convert using hsv() static method (hue: 0-360, sat/val: 0-255)
+ * - HSL: Convert using hsl() static method (hue: 0-360, sat/light: 0-255)
+ * 
+ * Performance Considerations:
+ * - Basic RGB operations are very fast (direct byte manipulation)
+ * - Color space conversions (HSV/HSL) involve floating point math
+ * - Interpolation and scaling use floating point calculations
+ */
 struct PixCol {
     byte r;
     byte g;
@@ -54,7 +91,7 @@ struct PixCol {
             : r(red), g(green), b(blue) { }
 
     /* create a color with the given 0xRRGGBB value */
-    inline PixCol(uint32_t rgb)  __attribute__((always_inline)) // NOLINT(google-explicit-constructor)
+    inline PixCol(uint32_t rgb)  __attribute__((always_inline)) 
             : r((byte) (rgb >> 16 & 0xFF)), g((byte) (rgb >> 8 & 0xFF)), b((byte) (rgb >> 0 & 0xFF)) { }
 
     bool operator == (const PixCol &other) const {
@@ -66,33 +103,106 @@ struct PixCol {
     }
 
     /* return the current color as 0xRRGGBB */
-    uint32_t rgb() { return ((uint32_t)r << 16) | ((uint32_t)g <<  8) | b; }
+    uint32_t rgb() const { return ((uint32_t)r << 16) | ((uint32_t)g <<  8) | b; }
 
-    /* compute a new color between the current and given.  value 1=current, .5=half between, 0=given */
-    PixCol interpolate(PixCol color, float value) {
+    /**
+     * @brief Interpolate between this color and another
+     * 
+     * @param color Target color to interpolate towards
+     * @param value Interpolation factor (0.0 = this color, 1.0 = target color)
+     * @return PixCol The interpolated color
+     */
+    PixCol interpolate(PixCol color, float value) const {
         return PixCol((byte) (value * (color.r - r) + r),
                       (byte) (value * (color.g - g) + g),
                       (byte) (value * (color.b - b) + b));
     }
 
-    /* compute a new color between the current and given.  value 1=given, .5=half between, 0=current */
-    PixCol rinterpolate(PixCol color, float value) {
+    /**
+     * @brief Reverse interpolate between this color and another
+     * 
+     * @param color Target color to interpolate from
+     * @param value Interpolation factor (0.0 = target color, 1.0 = this color)
+     * @return PixCol The interpolated color
+     */
+    PixCol rinterpolate(PixCol color, float value) const {
         return PixCol((byte) (value * (r - color.r) + color.r),
                       (byte) (value * (g - color.g) + color.g),
                       (byte) (value * (b - color.b) + color.b));
     }
 
-    /* multiply the current color by the given scale value */
-    PixCol scale(float value) {
+    /**
+     * @brief Scale the brightness of the color
+     * 
+     * @param value Scaling factor (0.0 = black, 1.0 = original color)
+     * @return PixCol The scaled color
+     */
+    PixCol scale(float value) const noexcept {
+        value = value < 0.0f ? 0.0f : (value > 1.0f ? 1.0f : value);
         return PixCol((byte) min(r * value, 0xFF),
                       (byte) min(g * value, 0xFF),
                       (byte) min(b * value, 0xFF));
     }
 
+    PixCol saturate(float saturation) const noexcept {
+        saturation = saturation < 0.0f ? 0.0f : (saturation > 1.0f ? 1.0f : saturation);
+        
+        // Convert RGB to floats between 0-1
+        float fR = r / 255.0f;
+        float fG = g / 255.0f;
+        float fB = b / 255.0f;
+        
+        // Find min and max RGB components
+        float min = fR < fG ? (fR < fB ? fR : fB) : (fG < fB ? fG : fB);
+        float max = fR > fG ? (fR > fB ? fR : fB) : (fG > fB ? fG : fB);
+        float delta = max - min;
+        
+        // Calculate HSV values
+        float hue = 0.0f;
+        float val = max;
+        
+        if (delta != 0.0f) {
+            if (max == fR) {
+                hue = (fG - fB) / delta;
+                if (hue < 0.0f) hue += 6.0f;
+            }
+            else if (max == fG) {
+                hue = 2.0f + (fB - fR) / delta;
+            }
+            else { // max == fB
+                hue = 4.0f + (fR - fG) / delta;
+            }
+            hue *= 60.0f;
+        }
+        
+        // Use new saturation value and convert back to RGB
+        return hsv(hue, saturation, val);
+    }
+
+    /**
+     * @brief Static method to scale a color's brightness
+     * 
+     * @param color Color to scale
+     * @param value Scaling factor (0.0 = black, 1.0 = original color)
+     * @return PixCol The scaled color
+     */
     static PixCol scale(PixCol color, float value) {
         return color.scale(value);
     }
 
+    /**
+     * @brief Create a color from HSV values
+     * 
+     * @param hue Hue angle in degrees (0-360)
+     * @param sat Saturation value (0-255)
+     * @param val Value/brightness (0-255)
+     * @return PixCol The resulting RGB color
+     * 
+     * Creates a color using the HSV (Hue, Saturation, Value) color space.
+     * - Hue: Color angle (0=red, 120=green, 240=blue)
+     * - Saturation: Color purity (0=white/gray, 255=pure color)
+     * - Value: Brightness (0=black, 255=full brightness)
+     */
     static PixCol hsv(int hue, byte sat, byte val) {
         byte r = val, g = val, b = val;
         if (sat > 0) {
@@ -110,278 +220,190 @@ struct PixCol {
         return {r, g, b};
     }
 
-    /*
-function hsl2rgb_wiki(h,s,l) {
-  let c = (1-Math.abs(2*l-1))*s;
-  let k = h/60;
-  let x = c*(1 - Math.abs(k%2-1));
-
-  let r1 = g1 = b1 = 0;
-
-  if(k>=0 && k<=1) { r1=c; g1=x }
-  if(k>1 && k<=2)  { r1=x; g1=c }
-  if(k>2 && k<=3)  { g1=c; b1=x }
-  if(k>3 && k<=4)  { g1=x; b1=c }
-  if(k>4 && k<=5)  { r1=x; b1=c }
-  if(k>5 && k<=6)  { r1=c; b1=x }
-
-  let m = l - c/2;
-
-  return [r1+m,g1+m,b1+m]
-}
+    /**
+     * all parameters are normalized to 0.0-1.0
      */
-
     static PixCol hsv(double hue, double sat, double val) {
         return hsv(int(hue * 360), int(sat * 255), int(val * 255));
     }
 
-    enum Colors: uint32_t {
-        OFF     = 0,
-        BLACK   = OFF,
-        WHITE   = 0xFFFFFF,
+    /**
+     * @brief Create a color from HSL values
+     * 
+     * @param hue Hue angle in degrees (0-360)
+     * @param sat Saturation value (0-255)
+     * @param light Lightness value (0-255)
+     * @return PixCol The resulting RGB color
+     * 
+     * Creates a color using the HSL (Hue, Saturation, Lightness) color space.
+     * - Hue: Color angle (0=red, 120=green, 240=blue)
+     * - Saturation: Color intensity (0=gray, 255=pure color)
+     * - Lightness: Light amount (0=black, 128=pure color, 255=white)
+     */
+    static PixCol hsl(int hue, byte sat, byte light) {
+        // Normalize inputs to 0-1 range
+        float h = (hue < 0 ? 360 + hue % 360 : hue % 360) / 360.0f;
+        float s = sat / 255.0f;
+        float l = light / 255.0f;
+        
+        // No saturation means grayscale
+        if (s == 0.0f) {
+            byte gray = (byte)(l * 255);
+            return PixCol(gray, gray, gray);
+        }
+        
+        // Helper function to convert hue to RGB
+        auto hue2rgb = [](float p, float q, float t) {
+            if (t < 0.0f) t += 1.0f;
+            if (t > 1.0f) t -= 1.0f;
+            if (t < 1.0f/6.0f) return p + (q - p) * 6.0f * t;
+            if (t < 1.0f/2.0f) return q;
+            if (t < 2.0f/3.0f) return p + (q - p) * (2.0f/3.0f - t) * 6.0f;
+            return p;
+        };
+        
+        float q = l < 0.5f ? l * (1.0f + s) : l + s - l * s;
+        float p = 2.0f * l - q;
+        
+        byte r = (byte)(hue2rgb(p, q, h + 1.0f/3.0f) * 255);
+        byte g = (byte)(hue2rgb(p, q, h) * 255);
+        byte b = (byte)(hue2rgb(p, q, h - 1.0f/3.0f) * 255);
+        
+        return PixCol(r, g, b);
+    }
 
-        R       = 0xFF0000,
-        G       = 0x00FF00,
-        B       = 0x0000FF,
+    /**
+     * all parameters are normalized to 0.0-1.0
+     */
+    static PixCol hsl(double hue, double sat, double light) {
+        return hsl(int(hue * 360), int(sat * 255), int(light * 255));
+    }
 
-        // BROWN COLORS
-        CORN_SILK = 0xFFF8DC,
-        BLANCHED_ALMOND = 0xFFEBCD,
-        BISQUE = 0xFFE4C4,
-        NAVAJO_WHITE = 0xFFDEAD,
-        WHEAT = 0xF5DEB3,
-        BURLY_WOOD = 0xDEB887,
-        TAN = 0xD2B48C,
-        ROSY_BROWN = 0xBC8F8F,
-        SANDY_BROWN = 0xF4A460,
-        GOLDEN_ROD = 0xDAA520,
-        DARK_GOLDEN_ROD = 0xB8860B,
-        PERU = 0xCD853F,
-        CHOCOLATE = 0xD2691E,
-        SADDLE_BROWN = 0x8B4513,
-        SIENNA = 0xA0522D,
-        BROWN = 0xA52A2A,
-        MAROON = 0x800000,
+    /*
+    Basic Color Space Comparisons
+    COLOR   RGB (0-255)     HSV (360°,100%,100%)    HSL (360°,100%,100%)
+    ------- --------------- ----------------------   ----------------------
+    BLACK   (0,0,0)         (0°,0%,0%)              (0°,0%,0%)
+    WHITE   (255,255,255)   (0°,0%,100%)            (0°,0%,100%)
+    RED     (255,0,0)       (0°,100%,100%)          (0°,100%,50%)
+    GREEN   (0,255,0)       (120°,100%,100%)        (120°,100%,50%)
+    BLUE    (0,0,255)       (240°,100%,100%)        (240°,100%,50%)
 
-        // RED COLORS
-        LIGHT_SALMON = 0xFFA07A,
-        SALMON = 0xFA8072,
-        DARK_SALMON = 0xE9967A,
-        LIGHT_CORAL = 0xF08080,
-        INDIAN_RED = 0xCD5C5C,
-        CRIMSON = 0xDC143C,
-        FIREBRICK = 0xB22222,
-        RED = 0xFF0000,
-        DARK_RED = 0x8B0000,
+    Blue Color Variations Comparison
+    COLOR           RGB (0-255)     HSV (360°,100%,100%)    HSL (360°,100%,100%)
+    --------------- --------------- ----------------------   ----------------------
+    PURE BLUE       (0,0,255)       (240°,100%,100%)        (240°,100%,50%)
+    LIGHT BLUE      (127,127,255)   (240°,50%,100%)         (240°,100%,75%)
+    DARK BLUE       (0,0,127)       (240°,100%,50%)         (240°,100%,25%)
+    PASTEL BLUE     (179,179,255)   (240°,30%,100%)         (240°,100%,85%)
+    NAVY BLUE       (0,0,128)       (240°,100%,50%)         (240°,100%,25%)
+    GRAYISH BLUE    (107,107,179)   (240°,40%,70%)          (240°,40%,56%)
+    */
 
-        // ORANGE COLORS
-        CORAL = 0xFF7F50,
-        TOMATO = 0xFF6347,
-        ORANGE_RED = 0xFF4500,
-        GOLD = 0xFFD700,
-        ORANGE = 0xFFA500,
-        DARK_ORANGE = 0xFF8C00,
-
-        // YELLOW COLORS
-        LIGHT_YELLOW = 0xFFFFE0,
-        LEMON_CHIFFON = 0xFFFACD,
-        LIGHT_GOLDEN_ROD_YELLOW = 0xFAFAD2,
-        PAPAYA_WHIP = 0xFFEFD5,
-        MOCCASIN = 0xFFE4B5,
-        PEACH_PUFF = 0xFFDAB9,
-        PALE_GOLDEN_ROD = 0xEEE8AA,
-        KHAKI = 0xF0E68C,
-        DARK_KHAKI = 0xBDB76B,
-        YELLOW = 0xFFFF00,
-
-        // GREEN COLORS
-        LAWN_GREEN = 0x7CFC00,
-        CHARTREUSE = 0x7FFF00,
-        LIME_GREEN = 0x32CD32,
-        LIME = 0x00FF00,
-        FOREST_GREEN = 0x228B22,
-        GREEN = 0x008000,
-        DARK_GREEN = 0x006400,
-        GREEN_YELLOW = 0xADFF2F,
-        YELLOW_GREEN = 0x9ACD32,
-        SPRING_GREEN = 0x00FF7F,
-        MEDIUM_SPRING_GREEN = 0x00FA9A,
-        LIGHT_GREEN = 0x90EE90,
-        PALE_GREEN = 0x98FB98,
-        DARK_SEA_GREEN = 0x8FBC8F,
-        MEDIUM_SEA_GREEN = 0x3CB371,
-        SEA_GREEN = 0x2E8B57,
-        OLIVE = 0x808000,
-        DARK_OLIVE_GREEN = 0x556B2F,
-        OLIVE_DRAB = 0x6B8E23,
-
-        // CYAN COLORS
-        LIGHT_CYAN = 0xE0FFFF,
-        CYAN = 0x00FFFF,
-        AQUA = CYAN,
-        AQUA_MARINE = 0x7FFFD4,
-        MEDIUM_AQUA_MARINE = 0x66CDAA,
-        PALE_TURQUOISE = 0xAFEEEE,
-        TURQUOISE = 0x40E0D0,
-        MEDIUM_TURQUOISE = 0x48D1CC,
-        DARK_TURQUOISE = 0x00CED1,
-        LIGHT_SEA_GREEN = 0x20B2AA,
-        CADET_BLUE = 0x5F9EA0,
-        DARK_CYAN = 0x008B8B,
-        TEAL = 0x008080,
-
-        // BLUE COLORS
-        POWDER_BLUE = 0xB0E0E6,
-        LIGHT_BLUE = 0xADD8E6,
-        LIGHT_SKY_BLUE = 0x87CEFA,
-        SKY_BLUE = 0x87CEEB,
-        DEEP_SKY_BLUE = 0x00BFFF,
-        LIGHT_STEEL_BLUE = 0xB0C4DE,
-        DODGER_BLUE = 0x1E90FF,
-        CORN_FLOWER_BLUE = 0x6495ED,
-        STEEL_BLUE = 0x4682B4,
-        ROYAL_BLUE = 0x4169E1,
-        BLUE = 0x0000FF,
-        MEDIUM_BLUE = 0x0000CD,
-        DARK_BLUE = 0x00008B,
-        NAVY = 0x000080,
-        MIDNIGHT_BLUE = 0x191970,
-        MEDIUM_SLATE_BLUE = 0x7B68EE,
-        SLATE_BLUE = 0x6A5ACD,
-        DARK_SLATE_BLUE = 0x483D8B,
-
-        // PURPLE COLORS
-        LAVENDER = 0xE6E6FA,
-        THISTLE = 0xD8BFD8,
-        PLUM = 0xDDA0DD,
-        VIOLET = 0xEE82EE,
-        ORCHID = 0xDA70D6,
-        MAGENTA = 0xFF00FF,
-        FUSCHSIA = MAGENTA,
-        MEDIUM_ORCHID = 0xBA55D3,
-        MEDIUM_PURPLE = 0x9370DB,
-        BLUE_VIOLET = 0x8A2BE2,
-        DARK_VIOLET = 0x9400D3,
-        DARK_ORCHID = 0x9932CC,
-        DARK_MAGENTA = 0x8B008B,
-        PURPLE = 0x800080,
-        INDIGO = 0x4B0082,
-
-        // PINK COLORS
-        PINK = 0xFFC0CB,
-        LIGHT_PINK = 0xFFB6C1,
-        HOT_PINK = 0xFF69B4,
-        DEEP_PINK = 0xFF1493,
-        PALE_VIOLET_RED = 0xDB7093,
-        MEDIUM_VIOLET_RED = 0xC71585,
-
-        // WHITE COLORS
-        SNOW = 0xFFFAFA,
-        HONEYDEW = 0xF0FFF0,
-        MINT_CREAM = 0xF5FFFA,
-        AZURE = 0xF0FFFF,
-        ALICE_BLUE = 0xF0F8FF,
-        GHOST_WHITE = 0xF8F8FF,
-        WHITE_SMOKE = 0xF5F5F5,
-        SEA_SHELL = 0xFFF5EE,
-        BEIGE = 0xF5F5DC,
-        OLD_LACE = 0xFDF5E6,
-        FLORAL_WHITE = 0xFFFAF0,
-        IVORY = 0xFFFFF0,
-        ANTIQUE_WHITE = 0xFAEBD7,
-        LINEN = 0xFAF0E6,
-        LAVENDER_BLUSH = 0xFFF0F5,
-        MISTY_ROSE = 0xFFE4E1,
-
-        // GRAY COLORS
-        GAINSBORO = 0xDCDCDC,
-        LIGHT_GRAY = 0xD3D3D3,
-        SILVER = 0xC0C0C0,
-        DARK_GRAY = 0xA9A9A9,
-        GRAY = 0x808080,
-        DIM_GRAY = 0x696969,
-        LIGHT_SLATE_GRAY = 0x778899,
-        SLATE_GRAY = 0x708090,
-        DARK_SLATE_GRAY = 0x2F4F4F,
-
-    };
 };
 
-namespace Hue {
-    constexpr double RED          = 0.0;     // 0°
-    constexpr double ORANGE       = 0.083;   // 30°
-    constexpr double YELLOW       = 0.167;   // 60°
-    constexpr double YELLOW_GREEN = 0.25;    // 90°
-    constexpr double GREEN        = 0.333;   // 120°
-    constexpr double BLUE_GREEN   = 0.417;   // 150°
-    constexpr double CYAN         = 0.5;     // 180°
-    constexpr double AZURE        = 0.583;   // 210°
-    constexpr double BLUE         = 0.667;   // 240°
-    constexpr double VIOLET       = 0.75;    // 270°
-    constexpr double MAGENTA      = 0.833;   // 300°
-    constexpr double PINK         = 0.917;   // 330°
-    constexpr double RED_MAX      = 1.0;     // 360°
-}
 
-
-/* holds a set of colors, helper functions for selecting or computing a color from the palette */
 struct PixPal {
     byte count;
-    PixCol *colors;
+    PixCol* colors;
 
-    /* return a color at the given index, if the index is fractional compute the proper color between the two indices */
-    PixCol computeColorAt(float index) {
-        int first = (int) index % (count);
-        int second = (int) (index + 1) % (count);
-        float interpolationValue = index - (int) index;
+    // Default constructor
+    PixPal() : count(0), colors(nullptr) {}
+
+    // Constructor from count and array
+    PixPal(byte cnt, const PixCol* cols) : count(cnt) {
+        colors = new PixCol[cnt];
+        for(byte i = 0; i < cnt; i++) {
+            colors[i] = cols[i];
+        }
+    }
+
+    // Copy constructor
+    PixPal(const PixPal& other) : count(other.count) {
+        colors = new PixCol[count];
+        for(byte i = 0; i < count; i++) {
+            colors[i] = other.colors[i];
+        }
+    }
+
+    // Assignment operator
+    PixPal& operator=(const PixPal& other) {
+        if (this != &other) {
+            delete[] colors;
+            count = other.count;
+            colors = new PixCol[count];
+            for(byte i = 0; i < count; i++) {
+                colors[i] = other.colors[i];
+            }
+        }
+        return *this;
+    }
+
+    // Destructor
+    ~PixPal() {
+        delete[] colors;
+    }
+
+    // Static creator method
+    template<size_t N>
+    static PixPal create(const PixCol (&cols)[N]) {
+        return PixPal(N, cols);
+    }
+
+    PixCol determineColorAt(int index) const {
+        return colors[index % count];
+    }
+
+    PixCol interpolateColorAt(float index) const {
+        int first = (int)index % count;
+        int second = (int)(index + 1) % count;
+        float interpolationValue = index - (int)index;
         return colors[first].interpolate(colors[second], interpolationValue);
     }
 
-    /* return one of the palette colors randomly */
-    PixCol randomColor() {
+    PixCol randomColor() const {
         return colors[random(count)];
-    }
-
-    bool operator == (const PixPal &other) const {
-        if (this->count != other.count) return false;
-        for (int i=0; i < count; i++) {
-            if (this->colors[i] != other.colors[i]) return false;
-        }
-        return true;
     }
 };
 
-extern PixPal paletteBW;
-extern PixPal paletteRGB;
-extern PixPal paletteRYGB;
-extern PixPal paletteRYGBStripe;
-extern PixPal paletteRainbow;
-extern PixPal  __unused paletteBasic;
 
-extern PixPal paletteReds;
-extern PixPal paletteOranges;
-extern PixPal paletteYellows;
-extern PixPal paletteGreens;
-extern PixPal paletteCyans;
-extern PixPal paletteBlues;
-extern PixPal palettePurples;
-extern PixPal palettePinks;
 
-/* holds the data and functions given to a PixAniFunc function */
+/**
+ * @struct PixAniData
+ * @brief A structure to manage pixel animation data.
+ *
+ * This structure holds various data required for pixel animations, including pixel and palette information,
+ * timing details, and utility functions for wave generation and color manipulation.
+ *
+ * Members:
+ * - Initialization:
+ *   - int pixelCount: Number of pixels.
+ *   - PixCol *pixels: Array of pixel data to manipulate.
+ *   - PixPal *palette: Color palette to work with.
+ *   - long cycleDuration: Total duration of one cycle in milliseconds.
+ *   - long start: Time (in milliseconds) the animation started.
+ *   - long stop: Time (in milliseconds) the animation will stop.
+ * - Updated each loop:
+ *   - system_tick_t updated: Time (in milliseconds) of the current update.
+ *   - long cycleMillis: Milliseconds into the current cycle.
+ *   - long cycleCount: Number of cycles performed.
+ *   - float cyclePct: Percentage of the way through the current cycle.
+ *   - int data: Data to pass to the animation function.
+ */
 struct PixAniData {
     // set in initialization:
-    int pixelCount;       // number of pixels
-    PixCol *pixels;       // array of pixel data to manipulate
-    PixPal *palette;      // color palette to work with
-    long cycleDuration;   // total duration of one cycle in ms (1..)
-    long start;           // time (in ms) the animation started
-    long stop;            // time (in ms) the animation will stop (start + total duration, equal to start for infinite)
+    int pixelCount;                 // number of pixels
+    PixCol *pixels;                 // array of pixel data to manipulate
+    PixPal *palette;                // color palette to work with
+    unsigned long cycleDuration;    // total duration of one cycle in ms (1..)
+    unsigned long start;            // time (in ms) the animation started
+    unsigned long stop;             // time (in ms) the animation will stop (start + total duration, equal to start for infinite)
     // updated each loop:
-    system_tick_t updated;// time (in ms) of current update
-    long cycleMillis;     // ms into the current cycle (0..cycleDuration)
-    long cycleCount;      // number of cycles performed.  note: this count rolls over when system.millis() value rolls over
-    float cyclePct;       // percent of the way through the current cycle
-    int data;             // data to pass to animation function
+    system_tick_t updated;          // time (in ms) of current update
+    unsigned long cycleMillis;      // ms into the current cycle (0..cycleDuration)
+    unsigned long cycleCount;       // number of cycles performed.  note: this count rolls over when system.millis() value rolls over
+    float cyclePct;                 // percent of the way through the current cycle
+    int data;                       // data to pass to animation function
 
     /* return the current step, given the number of steps, based on time and cycle time */
     int step(int steps) { return (int) (cyclePct * steps); }
@@ -401,11 +423,11 @@ struct PixAniData {
     /* return the current step as fractional palatte index */
     inline float palettePartialStep() { return step((float)palette->count); }
 
-    inline PixCol paletteStepColor() { return palette->computeColorAt(paletteStep()); }
-    inline PixCol palettePartialStepColor() { return palette->computeColorAt(palettePartialStep()); }
+    inline PixCol paletteStepColor() { return palette->interpolateColorAt(paletteStep()); }
+    inline PixCol palettePartialStepColor() { return palette->interpolateColorAt(palettePartialStep()); }
 
-    inline PixCol paletteColor(float index) { return palette->computeColorAt(index); }
-    inline PixCol paletteColor(int index) { return palette->colors[index % palette->count]; }
+    inline PixCol paletteColor(float index) { return palette->interpolateColorAt(index); }
+    inline PixCol paletteColor(int index) { return palette->determineColorAt(index); }
 
     inline PixCol randomColor() { return palette->randomColor(); }
 
@@ -440,11 +462,76 @@ struct PixAniData {
     /* min & max function all in one */
     static float clampf(float v, float lo, float hi) { return (v < lo) ? lo : (hi < v) ? hi : v; }
     static double clampd(double v, double lo, double hi) { return (v < lo) ? lo : (hi < v) ? hi : v; }
-
 };
 
-/* function definition for creating animations */
 typedef void (PixAniFunc)(PixAniData* data);
+
+
+/**
+ * @class Pixeleds
+ * @brief A class to manage and control a strip of addressable LEDs.
+ *
+ * The Pixeleds class provides methods to initialize, update, and animate a strip of addressable LEDs.
+ * It supports setting individual pixels, setting all pixels, and starting animations.
+ *
+ * @note This class is designed to be used with the Particle platform.
+ *
+ * @param pixels Pointer to an array of PixCol objects representing the pixels.
+ * @param pixelCount The number of pixels in the strip.
+ * @param pixelPin The pin number to which the pixel strip is connected.
+ * @param type The type of LED strip (default is WS2812B).
+ * @param order The color order of the LED strip (default is ORDER_RGB).
+ */
+class Pixeleds {
+public:
+    Pixeleds(PixCol *pixels, int pixelCount, byte pixelPin, byte type = WS2812B, byte order = ORDER_RGB);
+
+    // initialize all the things, must be called in application's setup()
+    void setup();
+
+    // update pixels, call this from the application's loop()
+    void update(system_tick_t millis);
+
+    /* pixels */
+
+    // set given pixel (0 based) to given rgb colors, refreshes pixels on next update()
+    void setPixel(int pixel, byte r, byte g, byte b);
+
+    // set given pixel (0 based) to given color (0xRRGGBB or Color::X), refreshes pixels on next update()
+    void setPixel(int pixel, PixCol color);
+
+    // set all pixels to given color, refreshes pixels on next update()
+    void setPixels(PixCol color);
+
+    // spread given colors across all pixels, refreshes pixels on next update()
+    void setPixels(PixPal *palette);
+
+    // like set but forces immediate refresh, does not disable animation
+    void updatePixel(int pixel, PixCol color);
+
+    // like set but forces immediate refresh, does not disable animation
+    void updatePixels(PixCol color);
+
+    // start a pixel animation using the given animation function
+    PixAniData* startAnimation(PixAniFunc *animation, PixPal *palette,
+                               long cycle = 1000, long duration = -1, int data = 0);
+
+    // set the rate the animation will be executed and refreshed
+    void setAnimationRefresh(int refresh = 1000/50);
+
+    // true if an animation is currently running
+    bool isAnimationActive() const;
+
+private:
+    void updateAnimation(system_tick_t millis);
+
+    ParticlePixels *pixelStrip;
+    PixAniFunc *animationFunction {};
+    PixAniData animationData = PixAniData();
+    int animationRefresh{};
+};
+
+
 
 /* palette color[0] only */
 extern PixAniFunc animation_blink;
@@ -467,106 +554,3 @@ extern PixAniFunc animation_comet;
 extern PixAniFunc animation_bars;
 extern PixAniFunc animation_gradient;
 
-
-
-
-// Photon Only, WS2812B Only
-class ParticlePixels {
-public:
-    ParticlePixels(PixCol *pixels, int pixelCount, byte pin, byte type = WS2812B, byte order = ORDER_GRB);
-
-    ~ParticlePixels();
-
-    void setup();
-
-    void update(bool doRefresh = false) __attribute__((optimize("Ofast")));
-
-    void triggerRefresh();
-
-    void setPixelColor(int pixel, PixCol pixelColor);
-
-private:
-    byte pin;
-    PixCol *pixels;
-    int pixelCount;
-    byte type;
-    byte rOfs,gOfs,bOfs;
-
-    unsigned long endMicros = 0; // private to allow for multiple instances on different pins
-    bool refresh = true;
-};
-
-
-
-
-/**********************************************************************************************************************/
-
-
-class Pixeleds {
-public:
-    Pixeleds(PixCol *pixels, int pixelCount, byte pixelPin, byte type = WS2812B, byte order = ORDER_RGB);
-
-    // initialize all the things, must be called in application's setup()
-    void setup();
-
-    // update pixels, call this from the application's loop()
-    void update(system_tick_t millis);
-
-
-    /* pixels */
-
-    // set given pixel (0 based) to given rgb colors, refreshes pixels on next update()
-    void __unused setPixel(int pixel, byte r, byte g, byte b);
-
-    // set given pixel (0 based) to given color (0xRRGGBB or PixCol::X), refreshes pixels on next update()
-    void __unused setPixel(int pixel, PixCol color);
-
-    // set all pixels to given color, refreshes pixels on next update()
-    void __unused setPixels(byte r, byte g, byte b);
-
-    // set all pixels to given color, refreshes pixels on next update()
-    void __unused setPixels(PixCol color);
-
-    // set all pixels to given colors array, refreshes pixels on next update()
-    void __unused setPixels(PixCol* colors, int count);
-
-    // like set but forces immediate refresh, does not disable animation
-    void __unused updatePixel(int pixel, PixCol color);
-
-    // like set but forces immediate refresh, does not disable animation
-    void __unused updatePixels(PixCol color);
-
-    // like set but forces immediate refresh, does not disable animation
-    void __unused updatePixels(PixCol* colors, int count);
-
-
-    /* animation */
-
-    // start a pixel animation using the given animation function
-    PixAniData* startAnimation(PixAniFunc *animation, PixPal *palette = &paletteRainbow,
-                               long cycle = 1000, long duration = -1, int data = 0);
-
-    // set the rate the animation will be executed and refreshed
-    void setAnimationRefresh(int refresh = 1000/30);
-
-    // true if an animation is currently running
-    bool isAnimationActive();
-
-    // display the &animation_gradient and &palette_rainbow with the given cycle times and duration, -1=indefinite
-    void rainbow(long cycle = 1000, long duration = -1);
-
-
-private:
-    void updateAnimation(system_tick_t millis);
-
-    ParticlePixels *pixelStrip;
-    PixAniFunc *animationFunction {};
-    PixAniData animationData = PixAniData();
-    int animationRefresh{};
-};
-
-/**********************************************************************************************************************/
-
-#endif //PIXELEDS_H
-
-#pragma clang diagnostic pop

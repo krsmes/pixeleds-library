@@ -1,8 +1,6 @@
-#include <climits>
-
-#pragma SPARK_NO_PREPROCESSOR
-#include "application.h"
+#include "Particle.h"
 #include "pixeleds-library.h"
+#include "pixeleds-colors.h"
 
 SYSTEM_THREAD(ENABLED);
 
@@ -15,22 +13,22 @@ SYSTEM_THREAD(ENABLED);
  * palettes
  */
 
-PixPal offPal = { 1, new PixCol[1] {PixCol::OFF} };
-PixPal whitePal = { 1, new PixCol[1] {PixCol::LINEN} };
-PixPal dimPal = { 1, new PixCol[1] {PixCol::scale(PixCol::LINEN, 0.1f)} };
-PixPal darkPal = { 1, new PixCol[1] {PixCol::scale(PixCol::BEIGE, 0.02f)} };
+PixPal offPal = { 1, new PixCol[1] {Color::OFF} };
+PixPal whitePal = { 1, new PixCol[1] {Color::IVORY} };
+PixPal dimPal = { 1, new PixCol[1] {Color::scale(Color::LINEN, 0.1f)} };
+PixPal darkPal = { 1, new PixCol[1] {Color::scale(Color::BEIGE, 0.02f)} };
 
-PixPal hotPal = { 4, new PixCol[4] {PixCol::CRIMSON, PixCol::ORANGE_RED, PixCol::DARK_ORANGE, PixCol::ORANGE_RED} };
-PixPal warmPal = { 4, new PixCol[4] {PixCol::GREEN_YELLOW, PixCol::ORANGE_RED, PixCol::DARK_ORANGE, PixCol::ORANGE_RED} };
-PixPal bluePal = { 4, new PixCol[4] {PixCol::DARK_TURQUOISE, PixCol::CYAN, PixCol::TEAL, PixCol::CYAN} };
+PixPal hotPal = { 4, new PixCol[4] {Color::CRIMSON, Color::ORANGE_RED, Color::DARK_ORANGE, Color::ORANGE_RED} };
+PixPal warmPal = { 4, new PixCol[4] {Color::GREEN_YELLOW, Color::ORANGE_RED, Color::DARK_ORANGE, Color::ORANGE_RED} };
+PixPal bluePal = { 4, new PixCol[4] {Color::DARK_TURQUOISE, Color::CYAN, Color::TEAL, Color::CYAN} };
 
 PixPal christmasPal { 16, new PixCol[16] {
-        PixCol::BLACK, PixCol::GREEN, PixCol::BLACK, PixCol::RED,
-        PixCol::BLACK, PixCol::GREEN, PixCol::BLACK, PixCol::RED,
-        PixCol::BLACK, PixCol::GREEN, PixCol::BLACK, PixCol::RED,
-        PixCol::BLACK, PixCol::GREEN, PixCol::BLACK, PixCol::RED} };
+        Color::BLACK, Color::GREEN, Color::BLACK, Color::RED,
+        Color::BLACK, Color::GREEN, Color::BLACK, Color::RED,
+        Color::BLACK, Color::GREEN, Color::BLACK, Color::RED,
+        Color::BLACK, Color::GREEN, Color::BLACK, Color::RED} };
 
-PixPal customPal = { 1, new PixCol[1] {PixCol::WHITE} };
+PixPal customPal = { 1, new PixCol[1] {Color::WHITE} };
 
 PixPal *pal = &offPal;
 
@@ -39,7 +37,7 @@ PixPal *pal = &offPal;
  */
 
 void fade_from_black(PixAniData* data) {
-    PixCol from = PixCol::BLACK;
+    PixCol from = Color::BLACK;
     PixCol target;
     // ratio of palette size to pixel count
     // e.g. pallet of 4 colors with a pixel count of 20 is .2,
@@ -57,7 +55,7 @@ void fade_from_black(PixAniData* data) {
 void fade_alternating(PixAniData* data) {
     Serial.printlnf("fade_alternating: updated=%ld, cycleCount=%ld, cycleMillis=%ld, cyclePct=%f",
                     data->updated, data->cycleCount, data->cycleMillis, data->cyclePct);
-    PixCol from = PixCol::BLACK;
+    PixCol from = Color::BLACK;
     PixCol target;
     // ratio of palette size to pixel count
     // e.g. pallet of 4 colors with a pixel count of 20 is .2,
@@ -83,8 +81,8 @@ void fade_alternating(PixAniData* data) {
  * device LED configuration
  */
 
-Pixeleds px = Pixeleds(new PixCol[11] {0}, 11, 3, WS2812B, ORDER_GRB); // Photon InternetButton config
-// Pixeleds px = Pixeleds(new PixCol[144] {0}, 144, 0, SK6812W, ORDER_GRB); // other LED setups
+// Pixeleds px = Pixeleds(new PixCol[11] {0}, 11, 3, WS2812B, ORDER_GRB); // Photon InternetButton config
+Pixeleds px = Pixeleds(new PixCol[144] {0}, 144, 0, SK6812W, ORDER_GRBW); // other LED setups
 
 
 
