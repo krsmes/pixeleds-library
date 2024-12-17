@@ -1,5 +1,5 @@
 #pragma once
-#if (PLATFORM_ID == 32)
+#if HAL_PLATFORM_RTL872X || (PLATFORM_ID == 32)  // photon 2/p2, m-som
 
 #include "Particle.h"
 #include "pixeleds-library.h"

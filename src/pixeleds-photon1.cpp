@@ -1,4 +1,4 @@
-#if (PLATFORM_ID == 6) || (PLATFORM_ID == 8) || (PLATFORM_ID == 10) || (PLATFORM_ID == 88)
+#if (PLATFORM_ID == 6) || (PLATFORM_ID == 8) || (PLATFORM_ID == 10) || (PLATFORM_ID == 88)  // photon, p1, electron
 
 #include "pixeleds-photon1.h"
 #include "pinmap_impl.h"

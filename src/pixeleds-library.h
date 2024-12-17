@@ -20,8 +20,15 @@ limitations under the License.
 
 #define M_2XPI 2 * M_PI
 
-#define WS2812B 0x02
-#define SK6812W 0x06
+// #define WS2811 0x01        // use ORDER_RGB  // (not supported)
+#define WS2812 0x02        // use ORDER_GRB
+#define WS2812B 0x02       // use ORDER_GRB
+#define WS2813B 0x02       // use ORDER_GRB
+// #define WS2812B2 0x05      // use ORDER_GRB  // (not supported)
+#define SK6812W 0x06       // use ORDER_GRBW 
+#define SK6812RGBW 0x06    // use ORDER_GRBW
+// #define WS2812B_FAST 0x07  // use ORDER_GRB  // (not supported)
+// #define WS2812B2_FAST 0x07 // use ORDER_GRB  // (not supported)
 
 // (rOffset | rOffset | rOffset | wOffset) each offset is 2 bits, 0-3
 #define ORDER_RGB (0 | (1 << 2) | (2 << 4))  // 0,1,2

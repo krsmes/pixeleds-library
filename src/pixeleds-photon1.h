@@ -1,5 +1,5 @@
 #pragma once
-#if (PLATFORM_ID == 6) || (PLATFORM_ID == 8) || (PLATFORM_ID == 10) || (PLATFORM_ID == 88)
+#if (PLATFORM_ID == 6) || (PLATFORM_ID == 8) || (PLATFORM_ID == 10) || (PLATFORM_ID == 88)  // photon, p1, electron, readbear-duo
 
 #include "Particle.h"
 #include "pixeleds-library.h"
